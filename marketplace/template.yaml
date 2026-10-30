@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  marketplace
+
+Globals:
+  Api:
+    Cors:
+      AllowOrigin: "'*'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowMethods: "'OPTIONS,POST,GET'"
+
+  Function:
+    Timeout: 10
+    Runtime: nodejs24.x
+    Architectures:
+      - x86_64
+
+    LoggingConfig:
+      LogFormat: JSON
+
+Resources:
+  ProductsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-products"
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  CreateProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/create-product/
+      Handler: create-product.lambdaHandler
+      Environment:
+        Variables:
+          TABLE_NAME_PRODUCTS: !Ref ProductsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        CreateProductApi:
+          Type: Api
+          Properties:
+            Path: /products
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2020
+        Sourcemap: true
+        EntryPoints:
+          - create-product.ts
+
+  GetProductsAllFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/get-product-all/
+      Handler: get-product-all.lambdaHandler
+      Environment:
+        Variables:
+          TABLE_NAME_PRODUCTS: !Ref ProductsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        GetProductsAllApi:
+          Type: Api
+          Properties:
+            Path: /products
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2020
+        Sourcemap: true
+        EntryPoints:
+          - get-product-all.ts
+
+  GetProductByIdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/get-product-by-id/
+      Handler: get-product-by-id.lambdaHandler
+      Environment:
+        Variables:
+          TABLE_NAME_PRODUCTS: !Ref ProductsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        GetProductByIdApi:
+          Type: Api
+          Properties:
+            Path: /products/{id}
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2020
+        Sourcemap: true
+        EntryPoints:
+          - get-product-by-id.ts
+
+Outputs:
+  ProductsApiUrl:
+    Description: API Gateway endpoint URL for the products resource
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/products"
