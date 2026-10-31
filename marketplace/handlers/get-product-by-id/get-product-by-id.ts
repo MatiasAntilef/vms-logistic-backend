@@ -1,9 +1,9 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
 
-import { GetProductType } from "../../../shared/types/product";
+import { Product } from "../../../shared/types/product";
 import { resOk, resServerError } from "../../../shared/utils/response";
 
 const dynamoDbClient = new DynamoDBClient({});
@@ -19,24 +19,20 @@ export const lambdaHandler = async (
       return resServerError("Product ID is required");
     }
 
-    const result = await ddbDocClient.send(
-      new ScanCommand({
+    const { Item } = await ddbDocClient.send(
+      new GetCommand({
         TableName: process.env.TABLE_NAME_PRODUCTS,
-        FilterExpression: "isActive = :isActive AND id = :id",
-        ExpressionAttributeValues: {
-          ":isActive": true,
-          ":id": id,
-        },
+        Key: { id: id },
       }),
     );
 
-    const products = result.Items as GetProductType[];
+    const product = Item as Product | undefined;
 
-    if (products.length === 0) {
+    if (product === undefined || product?.isActive === false) {
       return resServerError("Product not found");
     }
 
-    return resOk("Products retrieved successfully", products);
+    return resOk("Products retrieved successfully", product);
   } catch (error) {
     console.error("Error creating product:", error);
     return resServerError("Internal Server Error");
